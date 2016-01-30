@@ -1,3 +1,3 @@
-# matrix_add_cuda
-add two matrices with cuda
+# matrix_multiplication
+multiply two matrices with cuda
 
