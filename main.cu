@@ -1,105 +1,70 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <time.h>
 
 #include <cuda_runtime.h>
-#include <time.h>
-#include <stdio.h>
+#include "Matrix.h"
 
-__global__ void add_vector(float *c, const float *a, const float *b, int width)
+#define TILE_WIDTH (int)16
+
+//need to install lots of error checking here
+float* transferToDevice(float* M_h, size_t size)
 {
-    int col = blockIdx.x * width + threadIdx.x;
-	int row = blockIdx.y * width + threadIdx.y;
-    c[col][row] = a[col][row] + b[col][row];
+	float* M_d;
+
+	cudaMalloc((void**)&M_d, size);
+	cudaMemcpy(M_d, M_h, size, cudaMemcpyHostToDevice);
+	
+	return M_d;
 }
 
-//for an array of size, fill it with a random float in [0,1]
-void random_floats(float *A, int size)
+void matrixMult(Matrix A_h, Matrix B_h, Matrix C_h)
 {
-	for (int i = 0; i < size; i++)
-	{
-		A[i] = ((float) rand()) / ((float) RAND_MAX);
-	}
+	float* A_d = transferToDevice(A_h.data, A_h.bytes);
+	float* B_d = transferToDevice(B_h.data, A_h.bytes);
+	
+	float* C_d;
+	cudaMalloc((void**)&C_d, C_h.bytes );
+
+	//delete this later
+	int width = 20;
+	dim3 dimGrid(width / TILE_WIDTH, width / TILE_WIDTH);
+	dim3 dimBlock(TILE_WIDTH, TILE_WIDTH);
+
+
+	//launch the kernal here
+
+	//copy the answer back to the host
+	cudaMemcpy(C_h.data, C_d, )
+
+	cudaFree(A_d);
+	cudaFree(B_d);
+	cudaFree(C_d);
+
 }
 
-
-float my_abs(float a)
-{
-	if (a< 0)
-		return -1 * a;
-	return a;
-}
-
-//finds the machine epsilon for a float
-float find_eps()
-{
-	float machEps = (float) 1.0;
-
-        do {
-           machEps /= (float) 2.0;
-        }
-        while ((float)(1.0 + machEps) != 1.0);
-
-        return machEps;
-}
 
 int main()
 {
 	srand(time(0));
-	const int SIZE = 1000;
-	size_t bytes = 100 * 100 * sizeof(float);
 
-	//initialize out pointers on host and device
-	float *A, *B, *C;
-	float *dA, *dB, *dC;
-
-	//allocate vectors on host
-	A = (float*)malloc(bytes);
-	random_floats(A, SIZE);
-	B = (float*)malloc(bytes);
-	random_floats(B, SIZE);
-	C = (float*)malloc(bytes);
-
-	//alocate vectors on device
-	cudaMalloc((void**)&dA, bytes);
-	cudaMalloc((void**)&dB, bytes);
-	cudaMalloc((void**)&dC, bytes);
-
-	//copy the vector from host to device
-	cudaMemcpy(dA, A, bytes, cudaMemcpyHostToDevice);
-	cudaMemcpy(dB, B, bytes, cudaMemcpyHostToDevice);
-
-	//perform the addition
-	add_vector<<<1, SIZE >>>(dC, dB, dA);
-
-	//copy our answer back to the cpu
-	cudaMemcpy(C, dC, bytes, cudaMemcpyDeviceToHost);
-
-	cudaFree(dA);
-	cudaFree(dB);
-	cudaFree(dC);
-
-	//check for correctness
-	float eps = find_eps();
-	
-	int worked = 0;
-	for (int i = 0; i < SIZE; i++)
+	Matrix A_h = create(16, 16);
+	Matrix B_h = create(16, 16);
+	if (A_h.rows == B_h.cols)
+		Matrix C_h = create(A_h.cols, B_h.rows);
+	else
 	{
-		float rel_error = my_abs( ( (A[i] + B[i]) - C[i]) /C[i]);
-
-		if ( rel_error > eps)
-		{
-			printf("messed up on index %d\n", i);
-			printf("Calculation did not work\n");
-			worked = 1;
-			break;
-		}
+		printf("Can not multiply matrices of these dimensions.\n")
+		return 0;
 	}
 
-	if (worked == 0)
-		printf("Congrats, everyting worked!\n");
-	
+	fill_rand_floats(A_h, 10);
+	fill_rand_floats(B_h, 10);
 
-	//free up the host memory
-	free(A);
-	free(B);
-	free(C);
+	matrixMult(A_h, B_h, C_h);
 
+	//delete allocated memory on the host
+	free(A_h.data);
+	free(B_h.data);
+	free(C_h.data);
 }
