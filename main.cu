@@ -12,6 +12,9 @@
 #include "kernel.cu"
 #include "support.h"
 
+///Checks the return value of the previous cuda api call
+///Parameter is __LINE__ which indicates which line error occurs at.
+///Displays cuda error message when an error does occur, then proceeds to exit the program.
 void cuda_error_check(int line)
 {
 	cudaError_t err = cudaGetLastError();
@@ -68,7 +71,7 @@ int main (int argc, char *argv[])
     C_sz = matArow*matBcol;
 
     /* Intializes random number generator */
-    srand((unsigned) time(0));    
+    srand((unsigned) time(&t));    
 
 
     A_h = (float*) malloc( sizeof(float)*A_sz );
@@ -138,7 +141,6 @@ int main (int argc, char *argv[])
 
     //INSERT CODE HERE
 	cudaMemcpy(C_h, C_d, C_sz * sizeof(float), cudaMemcpyDeviceToHost); cuda_error_check(__LINE__);
-
 
     cudaDeviceSynchronize();
     stopTime(&timer); printf("%f s\n", elapsedTime(timer));
